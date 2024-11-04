@@ -3,6 +3,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
+df = pd.read_csv('2024.csv')
+
+
 def project_winner(row, rankings):
     home_rank = rankings.get(row["Home"], float('inf'))
     away_rank = rankings.get(row["Away"], float('inf'))
@@ -15,9 +18,8 @@ def project_winner(row, rankings):
     else:
         return row["Away"]
     
-def test_week(week_num):
+def create_G(week_num):
     G = nx.DiGraph()
-    df = pd.read_csv('2024.csv')
     df['cost'] = (df["xG"] - df["xG.1"]) + (df['Home Score'] - df['Away Score'])
     
     last_three = [week_num-3,week_num-2,week_num-1]
@@ -45,8 +47,10 @@ def test_week(week_num):
 
 
     edge_labels = nx.get_edge_attributes(G, 'weight')
+    return G
 
 
+def page_rank(G):
     pagerank = nx.pagerank(G, alpha=0.95, personalization=None, max_iter=100000, tol=1e-06, nstart=None, weight='weight', dangling=None)
 
     sorted_by_value = dict(sorted(pagerank.items(), key=lambda item: item[1], reverse=True))
@@ -54,21 +58,46 @@ def test_week(week_num):
     # Print in sorted order by value
     for i, (key, value) in enumerate(sorted_by_value.items(), start=1):
         rankings[key] = i
+    
+    return rankings
 
+def node_rank(G):
+    rankings = {}
+
+    incoming_weights = {
+        node: sum(data['weight'] for _, _, data in G.in_edges(node, data=True))
+        for node in G.nodes
+    }
+
+    sorted_by_value = dict(sorted(incoming_weights.items(), key=lambda item: item[1], reverse=True))
+
+
+    for i, (key, value) in enumerate(incoming_weights.items(), start=1):
+        rankings[key] = i
+
+    return rankings
+
+def validate_week(week_num, rank_dic):
     test_week_df = df[df['Wk'] == week_num].copy()  # Make a copy to avoid SettingWithCopyWarning
-    test_week_df.loc[:, "Projected Winner"] = test_week_df.apply(project_winner, axis=1, args=(rankings,))
+    test_week_df.loc[:, "Projected Winner"] = test_week_df.apply(project_winner, axis=1, args=(rank_dic,))
 
-    # Calculate accuracy
+    # Raw Accuracy
     # correct_predictions = (test_week_df["Projected Winner"] == test_week_df["Winner"]).sum()
     # Draw No Bet
     correct_predictions = ((test_week_df["Projected Winner"] == test_week_df["Winner"]) | (test_week_df["Winner"] == "Draw")).sum()
     total_predictions = len(test_week_df)
     accuracy = (correct_predictions / total_predictions) * 100
+
     return int(accuracy)
 
 if __name__ == "__main__":
-    for i in range(4,38):
+    for week_num in range(4,38):
         accuracy_list = []
-        accuracy_list.append(test_week(i))
+        G = create_G(week_num)
+
+        rankings = node_rank(G)
+
+        accuracy_list.append(validate_week(week_num, rankings))
+
     
     print(np.mean(accuracy_list))
