@@ -20,7 +20,7 @@ def test_week(week_num):
     df = pd.read_csv('2024.csv')
     df['cost'] = (df["xG"] - df["xG.1"]) + (df['Home Score'] - df['Away Score'])
     
-    last_three = [week_num-3,week_num-2,week_num-1, week_num-4]
+    last_three = [week_num-3,week_num-2,week_num-1]
 
     week_1_df = df[df['Wk'].isin(last_three)]
     edgelist = list(zip(week_1_df['Home'], week_1_df['Away'], week_1_df['cost']))
@@ -59,13 +59,15 @@ def test_week(week_num):
     test_week_df.loc[:, "Projected Winner"] = test_week_df.apply(project_winner, axis=1, args=(rankings,))
 
     # Calculate accuracy
-    correct_predictions = (test_week_df["Projected Winner"] == test_week_df["Winner"]).sum()
+    # correct_predictions = (test_week_df["Projected Winner"] == test_week_df["Winner"]).sum()
+    # Draw No Bet
+    correct_predictions = ((test_week_df["Projected Winner"] == test_week_df["Winner"]) | (test_week_df["Winner"] == "Draw")).sum()
     total_predictions = len(test_week_df)
     accuracy = (correct_predictions / total_predictions) * 100
     return int(accuracy)
 
 if __name__ == "__main__":
-    for i in range(5,38):
+    for i in range(4,38):
         accuracy_list = []
         accuracy_list.append(test_week(i))
     
