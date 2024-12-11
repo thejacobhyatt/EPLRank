@@ -11,7 +11,7 @@ def project_winner(row, rankings):
     away_rank = rankings.get(row["Away"], float('inf'))
     
     # Project a tie if the ranks are within 3 spots
-    if abs(home_rank - away_rank) <= 2:
+    if abs(home_rank - away_rank) <= 3:
         return "Draw"
     elif home_rank < away_rank:
         return row["Home"]
@@ -20,7 +20,7 @@ def project_winner(row, rankings):
     
 def create_G(week_num):
     G = nx.DiGraph()
-    df['cost'] = (df["xG"] - df["xG.1"]) + (df['Home Score'] - df['Away Score'])
+    df['cost'] = (df["xG"] - df["xG.1"])# + (df['Home Score'] - df['Away Score'])
     
     last_three = [week_num-3,week_num-2,week_num-1]
 
@@ -43,7 +43,7 @@ def create_G(week_num):
 
 
     for team1, team2, weight in mod_edgelist:
-        G.add_edge(team1, team2, weight=weight)
+        G.add_edge(team2, team1, weight=weight)
 
 
     edge_labels = nx.get_edge_attributes(G, 'weight')
