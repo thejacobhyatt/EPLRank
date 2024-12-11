@@ -25,15 +25,20 @@ def get_personalization(previous_weeks):
         home_team = row['Home']
         away_team = row['Away']
         
+        home_personal = row['HCPA_norm'] + row['HPrgP_norm'] + row['HPrgR_norm'] + row['HSCA_norm']
+        away_personal = row['ACPA_norm'] + row['APrgP_norm'] + row['APrgR_norm'] + row['ASCA_norm']
+
+
+        home_personal = home_personal
+        away_personal = away_personal
         # Add to the existing value if the team is already in the dictionary
-        personalization[home_team] = personalization.get(home_team, 0) + row['HCPA']
-        personalization[away_team] = personalization.get(away_team, 0) + row['ACPA']
+        personalization[home_team] = personalization.get(home_team, 0) + home_personal
+        personalization[away_team] = personalization.get(away_team, 0) + away_personal 
 
     return personalization
 
 def page_rank(G, personalization_vec):
     pagerank = nx.pagerank(G, alpha=0.95, personalization=personalization_vec, max_iter=100000, tol=1e-06, nstart=None, weight='weight', dangling=None)
-    print(personalization_vec)
     sorted_by_value = dict(sorted(pagerank.items(), key=lambda item: item[1], reverse=True))
     rankings = {}
     # Print in sorted order by value
@@ -42,15 +47,10 @@ def page_rank(G, personalization_vec):
     
     return rankings
 
-accuracy_list = []
-teams = df['Home'].unique()
-
-# Iterate over weeks 4 to 19
-for week_num in range(4, 21):
-    
-    # Normalize home and away stats
-    home_columns = ['HAtt 3rd', 'HAtt Pen', 'HSucc', 'HSucc%', 'HPrgC', 'HCPA', 'HPrgDist', 'HPrgR', 'Home Score']
-    away_columns = ['AAtt 3rd', 'AAtt Pen', 'ASucc', 'ASucc%', 'APrgC', 'ACPA', 'APrgDist', 'APrgR', 'Away Score']
+def normalize_cols():
+        # Normalize home and away stats
+    home_columns = ['HAtt 3rd', 'HAtt Pen', 'HSucc', 'HSucc%', 'HPrgC', 'HCPA', 'HLive', 'HPrgR', 'Home Score', 'HxG', 'HSCA', 'HPrgP']
+    away_columns = ['AAtt 3rd', 'AAtt Pen', 'ASucc', 'ASucc%', 'APrgC', 'ACPA', 'ALive', 'APrgR', 'Away Score', 'AxG', 'ASCA', 'APrgP' ]
     
     for col in home_columns + away_columns:
         df[f'{col}_norm'] = (df[col] - df[col].min()) / (df[col].max() - df[col].min())
@@ -60,11 +60,18 @@ for week_num in range(4, 21):
         df[[f'{col}_norm' for col in home_columns]].sum(axis=1) + 
         df[[f'{col}_norm' for col in away_columns]].sum(axis=1)
     )
-
-    # Alternative cost calculation (sum of original columns)
-    df['cost_p'] = (df[home_columns].sum(axis=1) + df[away_columns].sum(axis=1))
     
-    df['cost'] = df['Home Score_norm'] - df['Away Score_norm'] # + df['HAtt 3rd'] - df['AAtt 3rd'] 
+
+accuracy_list = []
+teams = df['Home'].unique()
+
+normalize_cols()
+
+# Iterate over weeks 4 to 19
+for week_num in range(4, 21):
+    
+
+    df['cost'] = df['Home Score'] - df['Away Score'] # + df['HAtt 3rd'] - df['AAtt 3rd'] 
 
     # Get the last 3 weeks of data
     last_three_weeks = [week_num - 3, week_num - 2, week_num - 1]
@@ -101,12 +108,11 @@ for week_num in range(4, 21):
     accuracy_list.append(accuracy)
 # Print the average accuracy across weeks
 print(f"Average accuracy: {np.mean(accuracy_list):.2f}%")
-print(accuracy_list)
 
 labels = [f'Bar {i+1}' for i in range(len(accuracy_list))]
 plt.bar(labels, accuracy_list)
 average_value = np.mean(accuracy_list)
 plt.axhline(average_value, color='red', linestyle='--', label=f'Average: {average_value:.2f}')
-plt.axhline(50, color='red', linestyle='--', label=f'Average: {average_value:.2f}')
-
+plt.axhline(50, color='black', linestyle='--', label=f'Base: {50:.2f}')
+plt.legend()
 plt.show()
