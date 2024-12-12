@@ -6,6 +6,9 @@ import numpy as np
 # Initialize graph and load data
 G = nx.DiGraph()
 df = pd.read_csv('final_2024.csv')
+bet_df = pd.read_csv('odds_2024.csv')
+cumulative_results = pd.DataFrame()
+
 
 # Project the winner based on the rankings
 def project_winner(row, rankings):
@@ -47,31 +50,69 @@ def page_rank(G, personalization_vec):
     
     return rankings
 
-def normalize_cols():
-        # Normalize home and away stats
-    home_columns = ['HAtt 3rd', 'HAtt Pen', 'HSucc', 'HSucc%', 'HPrgC', 'HCPA', 'HLive', 'HPrgR', 'Home Score', 'HxG', 'HSCA', 'HPrgP']
-    away_columns = ['AAtt 3rd', 'AAtt Pen', 'ASucc', 'ASucc%', 'APrgC', 'ACPA', 'ALive', 'APrgR', 'Away Score', 'AxG', 'ASCA', 'APrgP' ]
+def backtest_dnb(df, bet_amount=10):
+    """
+    Backtest model performance using winner, projected_winner, and odds with Draw No Bet (DNB).
+
+    Args:
+    - df (DataFrame): DataFrame with columns 'Winner', 'Projected Winner', and odds columns.
+    - bet_amount (float): Fixed bet amount for each prediction.
+
+    Returns:
+    - result (dict): Metrics including total bets, total returns, net profit, ROI, and accuracy.
+    - updated_df (DataFrame): Updated DataFrame with success and profit columns.
+    """
+    # Add a success column (1 if prediction is correct, 0 otherwise)
+    df['success'] = df['Projected Winner'] == df['Winner']
     
-    for col in home_columns + away_columns:
-        df[f'{col}_norm'] = (df[col] - df[col].min()) / (df[col].max() - df[col].min())
+    # Add a draw column (1 if match ends in a draw, 0 otherwise)
+    df['is_draw'] = df['Winner'] == 'Draw'
     
-    # Compute normalized cost
-    df['cost'] = (
-        df[[f'{col}_norm' for col in home_columns]].sum(axis=1) + 
-        df[[f'{col}_norm' for col in away_columns]].sum(axis=1)
-    )
+    # Calculate profit/loss for each row
+    def calculate_profit(row):
+        if row['is_draw']:
+            return 0  # Bet is voided, no profit or loss
+        elif row['success']:
+            return (row['successful_bet_odds'] - 1) * bet_amount  # Profit for correct prediction
+        else:
+            return -bet_amount  # Loss for incorrect prediction
+
+    df['profit'] = df.apply(calculate_profit, axis=1)
     
+    # Calculate metrics
+    total_bets = len(df) * bet_amount
+    total_returns = df['profit'].sum() + total_bets
+    net_profit = df['profit'].sum()
+    roi = (net_profit / total_bets) * 100
+    accuracy = df['success'].mean() * 100
+
+    result = {
+        'total_bets': total_bets,
+        'total_returns': total_returns,
+        'net_profit': net_profit,
+        'roi': roi,
+        'accuracy': accuracy
+    }
+
+    return result, df
 
 accuracy_list = []
 teams = df['Home'].unique()
 
-normalize_cols()
+
+    # Normalize home and away stats
+home_columns = ['HAtt 3rd', 'HAtt Pen', 'HSucc', 'HSucc%', 'HPrgC', 'HCPA', 'HLive', 'HPrgR', 'Home Score', 'HxG', 'HSCA', 'HPrgP']
+away_columns = ['AAtt 3rd', 'AAtt Pen', 'ASucc', 'ASucc%', 'APrgC', 'ACPA', 'ALive', 'APrgR', 'Away Score', 'AxG', 'ASCA', 'APrgP' ]
+
+for col in home_columns + away_columns:
+    df[f'{col}_norm'] = (df[col] - df[col].min()) / (df[col].max() - df[col].min())
+
 
 # Iterate over weeks 4 to 19
-for week_num in range(4, 21):
+for week_num in range(4, 39):
     
 
-    df['cost'] = df['Home Score'] - df['Away Score'] # + df['HAtt 3rd'] - df['AAtt 3rd'] 
+    df['cost'] = df['HxG'] - .9 * df['AxG'] # + df['HAtt 3rd'] - df['AAtt 3rd']
 
     # Get the last 3 weeks of data
     last_three_weeks = [week_num - 3, week_num - 2, week_num - 1]
@@ -101,18 +142,28 @@ for week_num in range(4, 21):
     # Test week predictions and accuracy calculation
     test_week = df[df['Wk'] == week_num].copy()
     test_week["Projected Winner"] = test_week.apply(project_winner, axis=1, rankings=rankings)
-    
+    cumulative_results = pd.concat([cumulative_results, test_week], ignore_index=True)
+
     correct_predictions = (test_week["Projected Winner"] == test_week["Winner"]).sum()
     total_predictions = len(test_week)
     accuracy = (correct_predictions / total_predictions) * 100
     accuracy_list.append(accuracy)
+
 # Print the average accuracy across weeks
 print(f"Average accuracy: {np.mean(accuracy_list):.2f}%")
 
-labels = [f'Bar {i+1}' for i in range(len(accuracy_list))]
-plt.bar(labels, accuracy_list)
-average_value = np.mean(accuracy_list)
-plt.axhline(average_value, color='red', linestyle='--', label=f'Average: {average_value:.2f}')
-plt.axhline(50, color='black', linestyle='--', label=f'Base: {50:.2f}')
-plt.legend()
-plt.show()
+
+from pathlib import Path
+
+filepath = Path('cummulative.csv')  
+cumulative_results.to_csv(filepath, index=False)
+
+
+def plot():
+    labels = [f'Bar {i+1}' for i in range(len(accuracy_list))]
+    plt.bar(labels, accuracy_list)
+    average_value = np.mean(accuracy_list)
+    plt.axhline(average_value, color='red', linestyle='--', label=f'Average: {average_value:.2f}')
+    plt.axhline(50, color='black', linestyle='--', label=f'Base: {50:.2f}')
+    plt.legend()
+    plt.show()
