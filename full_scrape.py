@@ -1,7 +1,7 @@
 from pathlib import Path
 import pandas as pd
 
-url_df = 'https://fbref.com/en/comps/9/2023-2024/schedule/2023-2024-Premier-League-Scores-and-Fixtures'
+url_df = 'https://fbref.com/en/comps/9/2022-2023/schedule/2022-2023-Premier-League-Scores-and-Fixtures'
 df = pd.read_html(url_df)
 
 df = pd.read_html(url_df)[0]
@@ -36,3 +36,6 @@ def get_winner(row):
     
 # Apply the function to each row and create a new column 'Winner'
 df["Winner"] = df.apply(get_winner, axis=1)
+
+filepath = Path('2023.csv')  
+df.to_csv(filepath, index=False)

@@ -5,7 +5,7 @@ import numpy as np
 
 # Initialize graph and load data
 G = nx.DiGraph()
-df = pd.read_csv('final_2024.csv')
+df = pd.read_csv('final_2023.csv')
 bet_df = pd.read_csv('odds_2024.csv')
 cumulative_results = pd.DataFrame()
 
@@ -112,7 +112,7 @@ for col in home_columns + away_columns:
 for week_num in range(4, 39):
     
 
-    df['cost'] = df['HxG'] - .9 * df['AxG'] # + df['HAtt 3rd'] - df['AAtt 3rd']
+    df['cost'] = df['HxG'] - .9* df['AxG'] # + df['HAtt 3rd'] - df['AAtt 3rd']
 
     # Get the last 3 weeks of data
     last_three_weeks = [week_num - 3, week_num - 2, week_num - 1]

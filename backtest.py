@@ -11,7 +11,7 @@ def project_winner(row, rankings):
     away_rank = rankings.get(row["Away"], float('inf'))
     
     # Project a tie if the ranks are within 3 spots
-    if abs(home_rank - away_rank) <= 3:
+    if abs(home_rank - away_rank) <= 0:
         return "Draw"
     elif home_rank < away_rank:
         return row["Home"]
@@ -96,8 +96,9 @@ if __name__ == "__main__":
         G = create_G(week_num)
 
         rankings = node_rank(G)
-
+        
         accuracy_list.append(validate_week(week_num, rankings))
-
+    print(accuracy_list)
+    
     
     print(np.mean(accuracy_list))
